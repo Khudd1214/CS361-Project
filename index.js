@@ -23,7 +23,10 @@ function displayWeather() {
 
 function displayBearRisk() {
   let targetDiv = document.getElementsByClassName("bearAttackBox")[0]
-  let newContent = document.createTextNode("This is the bear risk report!")
+  let userState = document.getElementById("userState").value
+  let newContent = document.createTextNode("" + userState)
+  //create XML request to go to server.js with bear_attack_request
+  //receive response from server.js
   targetDiv.appendChild(newContent)
 }
 
