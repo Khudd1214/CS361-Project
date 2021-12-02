@@ -1,54 +1,70 @@
-const express = require("express")
-const app = express()
-const portNumber = 4379
+const express = require("express");
+const app = express();
+const portNumber = 4379;
 
-const bodyParser = require("body-parser")
-const fs = require("fs")
-const {spawn} = require("child_process")
+const bodyParser = require("body-parser");
+const fs = require("fs");
+const { spawnSync } = require("child_process");
+const { response } = require("express");
 
-app.listen(portNumber)
-app.use(bodyParser.urlencoded({extended: true}))
+app.listen(portNumber);
+app.use(bodyParser.urlencoded({ extended: true }));
 
-function callScript(state) {
-  const pythonScript = spawn('python3', ["bearAttackService/attack_service.py"])
-  pythonScript.stdout.on('data', (data) => {
-    console.log("Sucess! ")
-    console.log(`stdout: ${data}`)
-  })
-  pythonScript.stderr.on('data', (data) => {
-    console.log("There was a problem... ")
-    console.error(`stderr: ${data}`)
-  })
-  pythonScript.on('close', (code) => {
-    function readResponse () {
-      fs.readFile('bearAttackService/attack_response.csv', 'utf8', function(err, data) {
-        if (err) {
-          console.log(err)
-        } else {
-          console.log(data)
-        }
-      })
-    }
-    console.log(`script exited with code ${code}`)
-    readResponse()
-  })
+/*
+-------Main-------
+*/
+
+app.get("/", function (request, response) {
+  response.sendFile(__dirname + "/team503weatherapp.html");
+});
+
+app.post("/", function (req, res) {
+  const userState = req.body.userState;
+  const dataType = req.body.dataType;
+  let response = populateData(userState, dataType);
+  res.send(response);
+});
+
+console.log("Listening on port " + portNumber);
+
+/*
+-------Functions-------
+*/
+
+function populateData(userState, dataType) {
+  bearAttackService = "bearAttackService/attack_service.py";
+  bearAttackResponse = "bearAttackService/attack_response.csv";
+  weatherService = "weatherService/weatherService.py";
+  weatherResponse = "weatherService/weather_response.csv";
+  userState = "State , " + userState;
+  let result = null;
+  if (dataType === "bearData") {
+    writeDoc("bearAttackService/attack_request.csv", userState);
+    callScript(bearAttackService);
+    result = readResponse(bearAttackResponse);
+    removeFile(bearAttackResponse);
+  } else {
+    writeDoc("weatherService/weather_request.csv", userState);
+    callScript(weatherService);
+    result = readResponse(weatherResponse);
+    removeFile(weatherResponse);
+  }
+  return result;
 }
 
-app.get("/", function(request, response){
-  response.sendFile(__dirname + "/team503weatherapp.html")
-})
-app.post("/", function(req, res){
-  const userState = req.body.userState
-  res.send(userState)
+function writeDoc(path, data) {
+  fs.writeFileSync(path, data, "utf8");
+}
 
-  //create attack_request.csv file
-  const attack_request_raw = "State , " + userState
-  fs.writeFile('bearAttackService/attack_request.csv', attack_request_raw, 'utf8', function(err){
-    if (err) return console.log(err)
-  })
+function readResponse(responseAddress) {
+  let result = fs.readFileSync(responseAddress, "utf8");
+  return result;
+}
 
-  //run attack_service.py
-  callScript(userState)
-  //send response
-})
-console.log("Listening on port " + portNumber)
+function removeFile(fileAddress) {
+  fs.rmSync(fileAddress);
+}
+
+function callScript(script) {
+  const pythonScript = spawnSync("python3", [script]);
+}
